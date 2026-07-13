@@ -51,7 +51,7 @@
   function addStopToStorage(stop) {
     const stops = loadStops();
     if (stops.some((s) => s.id === stop.id)) return stops;
-    stops.push(stop);
+    stops.push({ modes: null, view: 'list', ...stop });
     saveStops(stops);
     return stops;
   }
@@ -60,6 +60,14 @@
     const stops = loadStops().filter((s) => s.id !== id);
     saveStops(stops);
     return stops;
+  }
+
+  function updateStopMeta(id, patch) {
+    const stops = loadStops();
+    const stop = stops.find((s) => s.id === id);
+    if (stop) Object.assign(stop, patch);
+    saveStops(stops);
+    return stop;
   }
 
   // ---------- Sites (for search) ----------
@@ -237,6 +245,16 @@
     return iso ? new Date(iso).getTime() : Number.MAX_SAFE_INTEGER;
   }
 
+  const MODE_LABELS = { METRO: 'T-bana', BUS: 'Buss', TRAIN: 'Pendeltåg', TRAM: 'Spårvagn', SHIP: 'Båt' };
+  const TICKER_SPEED_PX_PER_SEC = 70;
+
+  function matchesMode(line, filterMode) {
+    if (!filterMode) return true;
+    const mode = (line.transport_mode || '').toUpperCase();
+    if (filterMode === 'SHIP') return mode === 'SHIP' || mode === 'FERRY';
+    return mode === filterMode;
+  }
+
   function renderStop(stop) {
     if (activeStops.has(stop.id)) return; // already rendered
 
@@ -259,17 +277,56 @@
 
     stopsGrid.appendChild(node);
 
-    const entry = { timer: null, card: node, lastTexts: [] };
+    const entry = {
+      timer: null,
+      card: node,
+      lastTexts: [],
+      lastDepartures: [],
+      stop: { modes: null, view: 'list', ...stop },
+    };
     activeStops.set(stop.id, entry);
+
+    // Mode filter chips
+    node.querySelectorAll('.mode-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const mode = chip.dataset.mode;
+        entry.stop.modes = entry.stop.modes === mode ? null : mode;
+        updateStopMeta(stop.id, { modes: entry.stop.modes });
+        updateModeChipsUI(entry);
+        renderDepartures(entry);
+      });
+    });
+    updateModeChipsUI(entry);
+
+    // View toggle (list <-> rullande text)
+    const viewToggleBtn = node.querySelector('.stop-card__view-toggle');
+    viewToggleBtn.addEventListener('click', () => {
+      entry.stop.view = entry.stop.view === 'ticker' ? 'list' : 'ticker';
+      updateStopMeta(stop.id, { view: entry.stop.view });
+      updateViewToggleUI(entry);
+      renderDepartures(entry);
+    });
+    updateViewToggleUI(entry);
 
     const poll = () => fetchDepartures(stop.id, entry);
     poll();
     entry.timer = setInterval(poll, REFRESH_MS);
   }
 
+  function updateModeChipsUI(entry) {
+    entry.card.querySelectorAll('.mode-chip').forEach((chip) => {
+      chip.classList.toggle('is-active', entry.stop.modes === chip.dataset.mode);
+    });
+  }
+
+  function updateViewToggleUI(entry) {
+    const btn = entry.card.querySelector('.stop-card__view-toggle');
+    const isTicker = entry.stop.view === 'ticker';
+    btn.classList.toggle('is-active', isTicker);
+    btn.title = isTicker ? 'Byt till lista' : 'Byt till rullande text';
+  }
+
   async function fetchDepartures(siteId, entry) {
-    const list = entry.card.querySelector('.departure-list');
-    const emptyMsg = entry.card.querySelector('.stop-card__empty');
     const errorMsg = entry.card.querySelector('.stop-card__error');
 
     try {
@@ -277,56 +334,107 @@
       if (!res.ok) throw new Error('Bad response');
       const data = await res.json();
       const departures = Array.isArray(data.departures) ? data.departures : [];
-
       departures.sort((a, b) => timeSortValue(a) - timeSortValue(b));
-      const shown = departures.slice(0, MAX_ROWS_PER_STOP);
 
       errorMsg.hidden = true;
-
-      if (shown.length === 0) {
-        list.innerHTML = '';
-        emptyMsg.hidden = false;
-        entry.lastTexts = [];
-        return;
-      }
-
-      emptyMsg.hidden = true;
-      list.innerHTML = '';
-
-      const newTexts = [];
-
-      shown.forEach((dep, i) => {
-        const row = departureRowTemplate.content.firstElementChild.cloneNode(true);
-        const badge = row.querySelector('.badge');
-        const dest = row.querySelector('.departure__destination');
-        const time = row.querySelector('.departure__time');
-
-        const line = dep.line || {};
-        badge.classList.add(badgeClassFor(line));
-        badge.textContent = line.designation || '';
-
-        dest.textContent = dep.destination || '';
-
-        const text = formatTime(dep);
-        time.textContent = text;
-        newTexts.push(text);
-
-        const mins = /^\d+/.test(text) ? parseInt(text, 10) : (text === 'Nu' ? 0 : null);
-        if (mins === 0) time.classList.add('departure__time--now');
-        else if (mins !== null && mins <= 3) time.classList.add('departure__time--soon');
-
-        if (entry.lastTexts[i] && entry.lastTexts[i] !== text) {
-          time.classList.add('flip');
-        }
-
-        list.appendChild(row);
-      });
-
-      entry.lastTexts = newTexts;
+      entry.lastDepartures = departures;
+      renderDepartures(entry);
     } catch (err) {
       errorMsg.hidden = false;
       errorMsg.textContent = 'Kunde inte hämta avgångar just nu. Försöker igen om en stund.';
     }
+  }
+
+  function renderDepartures(entry) {
+    const list = entry.card.querySelector('.departure-list');
+    const tickerWrap = entry.card.querySelector('.ticker-wrap');
+    const emptyMsg = entry.card.querySelector('.stop-card__empty');
+
+    const filtered = entry.lastDepartures.filter((dep) => matchesMode(dep.line || {}, entry.stop.modes));
+    const shown = filtered.slice(0, MAX_ROWS_PER_STOP);
+    const isTicker = entry.stop.view === 'ticker';
+
+    if (shown.length === 0) {
+      list.innerHTML = '';
+      list.hidden = true;
+      tickerWrap.hidden = true;
+      emptyMsg.hidden = false;
+      entry.lastTexts = [];
+      return;
+    }
+
+    emptyMsg.hidden = true;
+
+    if (isTicker) {
+      list.hidden = true;
+      tickerWrap.hidden = false;
+      renderTicker(tickerWrap, shown);
+    } else {
+      tickerWrap.hidden = true;
+      list.hidden = false;
+      renderList(list, shown, entry);
+    }
+  }
+
+  function renderList(list, shown, entry) {
+    list.innerHTML = '';
+    const newTexts = [];
+
+    shown.forEach((dep, i) => {
+      const row = departureRowTemplate.content.firstElementChild.cloneNode(true);
+      const badge = row.querySelector('.badge');
+      const dest = row.querySelector('.departure__destination');
+      const time = row.querySelector('.departure__time');
+
+      const line = dep.line || {};
+      badge.classList.add(badgeClassFor(line));
+      badge.textContent = line.designation || '';
+
+      dest.textContent = dep.destination || '';
+
+      const text = formatTime(dep);
+      time.textContent = text;
+      newTexts.push(text);
+
+      const mins = /^\d+/.test(text) ? parseInt(text, 10) : (text === 'Nu' ? 0 : null);
+      if (mins === 0) time.classList.add('departure__time--now');
+      else if (mins !== null && mins <= 3) time.classList.add('departure__time--soon');
+
+      if (entry.lastTexts[i] && entry.lastTexts[i] !== text) {
+        time.classList.add('flip');
+      }
+
+      list.appendChild(row);
+    });
+
+    entry.lastTexts = newTexts;
+  }
+
+  function renderTicker(tickerWrap, shown) {
+    const track = tickerWrap.querySelector('.ticker-track');
+
+    const itemsHtml = shown
+      .map((dep) => {
+        const dest = dep.destination || '';
+        const time = formatTime(dep);
+        return `<span class="ticker-item"><span class="ticker-item__dest">${escapeHtml(dest)}</span><span class="ticker-item__time">${escapeHtml(time)}</span></span>`;
+      })
+      .join('');
+
+    // Duplicate content so the loop (translateX -50%) is seamless.
+    track.innerHTML = itemsHtml + itemsHtml;
+
+    requestAnimationFrame(() => {
+      const fullWidth = track.scrollWidth / 2;
+      const duration = Math.max(8, fullWidth / TICKER_SPEED_PX_PER_SEC);
+      track.style.animationDuration = `${duration}s`;
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
   }
 
   function updateEmptyState() {

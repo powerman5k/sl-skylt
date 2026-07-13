@@ -57,10 +57,21 @@
     <header class="stop-card__header">
       <h2 class="stop-card__name"></h2>
       <div class="stop-card__actions">
+        <button class="icon-btn stop-card__view-toggle" title="Byt till rullande text" aria-label="Byt visningsläge">≋</button>
         <button class="icon-btn stop-card__remove" title="Ta bort hållplats" aria-label="Ta bort hållplats">&times;</button>
       </div>
     </header>
+    <div class="stop-card__modes" role="group" aria-label="Filtrera trafikslag">
+      <button type="button" class="mode-chip" data-mode="METRO">T-bana</button>
+      <button type="button" class="mode-chip" data-mode="BUS">Buss</button>
+      <button type="button" class="mode-chip" data-mode="TRAIN">Pendeltåg</button>
+      <button type="button" class="mode-chip" data-mode="TRAM">Spårvagn</button>
+      <button type="button" class="mode-chip" data-mode="SHIP">Båt</button>
+    </div>
     <ul class="departure-list"></ul>
+    <div class="ticker-wrap" hidden>
+      <div class="ticker-track"></div>
+    </div>
     <p class="stop-card__empty" hidden>Inga avgångar inom vald tidsram.</p>
     <p class="stop-card__error" hidden></p>
   </section>
