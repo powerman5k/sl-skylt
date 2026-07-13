@@ -1,0 +1,9 @@
+{
+  "name": "tavla",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Avgångstavla för SL – tunnelbana, buss, pendeltåg, spårvagn och båt.",
+  "engines": {
+    "node": ">=18"
+  }
+}

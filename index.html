@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Avgångar</title>
+<meta name="description" content="Nästa avgångar med tunnelbana, buss, pendeltåg och spårvagn för dina hållplatser." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="board">
+
+  <header class="board__header">
+    <div class="board__title">
+      <span class="board__title-main">AVGÅNGAR</span>
+      <span class="board__title-sub" id="clock">--:--:--</span>
+    </div>
+    <button class="btn btn--add" id="openAddStop" aria-haspopup="dialog" aria-controls="addStopDialog">
+      <span class="btn__plus" aria-hidden="true">+</span> Lägg till hållplats
+    </button>
+  </header>
+
+  <main id="stopsGrid" class="stops-grid" aria-live="polite">
+    <!-- Stop cards injected here -->
+  </main>
+
+  <p id="emptyState" class="empty-state" hidden>
+    Inga hållplatser tillagda ännu. Tryck på <strong>Lägg till hållplats</strong> för att komma igång.
+  </p>
+
+</div>
+
+<dialog id="addStopDialog" class="add-dialog">
+  <form method="dialog" class="add-dialog__form" id="addStopForm">
+    <div class="add-dialog__head">
+      <h2>Lägg till hållplats</h2>
+      <button type="submit" value="cancel" class="add-dialog__close" aria-label="Stäng">&times;</button>
+    </div>
+    <input
+      type="text"
+      id="stopSearchInput"
+      class="add-dialog__input"
+      placeholder="Sök på hållplatsens namn, t.ex. Slussen"
+      autocomplete="off"
+    />
+    <p id="searchStatus" class="add-dialog__status"></p>
+    <ul id="searchResults" class="add-dialog__results" role="listbox"></ul>
+  </form>
+</dialog>
+
+<template id="stopCardTemplate">
+  <section class="stop-card">
+    <header class="stop-card__header">
+      <h2 class="stop-card__name"></h2>
+      <div class="stop-card__actions">
+        <button class="icon-btn stop-card__remove" title="Ta bort hållplats" aria-label="Ta bort hållplats">&times;</button>
+      </div>
+    </header>
+    <ul class="departure-list"></ul>
+    <p class="stop-card__empty" hidden>Inga avgångar inom vald tidsram.</p>
+    <p class="stop-card__error" hidden></p>
+  </section>
+</template>
+
+<template id="departureRowTemplate">
+  <li class="departure">
+    <span class="badge"></span>
+    <span class="departure__destination"></span>
+    <span class="departure__time"></span>
+  </li>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
