@@ -51,7 +51,7 @@
   function addStopToStorage(stop) {
     const stops = loadStops();
     if (stops.some((s) => s.id === stop.id)) return stops;
-    stops.push({ modes: null, view: 'list', ...stop });
+    stops.push({ modes: null, view: 'list', line: null, ...stop });
     saveStops(stops);
     return stops;
   }
@@ -255,6 +255,11 @@
     return mode === filterMode;
   }
 
+  function matchesLine(line, filterLine) {
+    if (!filterLine) return true;
+    return (line.designation || '') === filterLine;
+  }
+
   function renderStop(stop) {
     if (activeStops.has(stop.id)) return; // already rendered
 
@@ -282,7 +287,7 @@
       card: node,
       lastTexts: [],
       lastDepartures: [],
-      stop: { modes: null, view: 'list', ...stop },
+      stop: { modes: null, view: 'list', line: null, ...stop },
     };
     activeStops.set(stop.id, entry);
 
@@ -291,7 +296,8 @@
       chip.addEventListener('click', () => {
         const mode = chip.dataset.mode;
         entry.stop.modes = entry.stop.modes === mode ? null : mode;
-        updateStopMeta(stop.id, { modes: entry.stop.modes });
+        entry.stop.line = null;
+        updateStopMeta(stop.id, { modes: entry.stop.modes, line: null });
         updateModeChipsUI(entry);
         renderDepartures(entry);
       });
@@ -317,6 +323,39 @@
     entry.card.querySelectorAll('.mode-chip').forEach((chip) => {
       chip.classList.toggle('is-active', entry.stop.modes === chip.dataset.mode);
     });
+  }
+
+  function renderLineChips(entry, byMode) {
+    const wrap = entry.card.querySelector('.stop-card__lines');
+    const designations = [...new Set(byMode.map((dep) => (dep.line || {}).designation).filter(Boolean))];
+    designations.sort((a, b) => a.localeCompare(b, 'sv', { numeric: true }));
+
+    if (entry.stop.line && !designations.includes(entry.stop.line)) {
+      entry.stop.line = null;
+      updateStopMeta(entry.stop.id, { line: null });
+    }
+
+    if (designations.length < 2) {
+      wrap.hidden = true;
+      wrap.innerHTML = '';
+      return;
+    }
+
+    wrap.hidden = false;
+    wrap.innerHTML = '';
+    for (const designation of designations) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'line-chip';
+      chip.textContent = designation;
+      chip.classList.toggle('is-active', entry.stop.line === designation);
+      chip.addEventListener('click', () => {
+        entry.stop.line = entry.stop.line === designation ? null : designation;
+        updateStopMeta(entry.stop.id, { line: entry.stop.line });
+        renderDepartures(entry);
+      });
+      wrap.appendChild(chip);
+    }
   }
 
   function updateViewToggleUI(entry) {
@@ -350,7 +389,10 @@
     const tickerWrap = entry.card.querySelector('.ticker-wrap');
     const emptyMsg = entry.card.querySelector('.stop-card__empty');
 
-    const filtered = entry.lastDepartures.filter((dep) => matchesMode(dep.line || {}, entry.stop.modes));
+    const byMode = entry.lastDepartures.filter((dep) => matchesMode(dep.line || {}, entry.stop.modes));
+    renderLineChips(entry, byMode);
+
+    const filtered = byMode.filter((dep) => matchesLine(dep.line || {}, entry.stop.line));
     const shown = filtered.slice(0, MAX_ROWS_PER_STOP);
     const isTicker = entry.stop.view === 'ticker';
 

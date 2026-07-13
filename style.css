@@ -3,9 +3,13 @@
   --panel: #14181f;
   --panel-border: #262b35;
   --panel-border-soft: #1c212a;
-  --ink: #f5b942;
+  --ink: #ff9d3d;
   --ink-dim: #8b93a1;
   --ink-faint: #4d5462;
+  --ink-glow: rgba(255, 140, 50, 0.65);
+  --dot-size: 2px;
+  --dot-gap: 5px;
+  --dot-unlit: rgba(255, 157, 61, 0.07);
   --danger: #d7392f;
 
   --metro-red: #d71920;
@@ -66,6 +70,7 @@ html, body {
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--ink);
+  text-shadow: 0 0 6px var(--ink-glow), 0 0 14px var(--ink-glow);
 }
 
 .board__title-sub {
@@ -104,6 +109,7 @@ html, body {
 .stops-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-items: start;
   gap: 16px;
 }
 
@@ -117,7 +123,9 @@ html, body {
 }
 
 .stop-card {
-  background: var(--panel);
+  background-color: var(--panel);
+  background-image: radial-gradient(circle, var(--dot-unlit) var(--dot-size), transparent var(--dot-size));
+  background-size: var(--dot-gap) var(--dot-gap);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 16px 16px 8px;
@@ -140,6 +148,7 @@ html, body {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink);
+  text-shadow: 0 0 5px var(--ink-glow);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,6 +218,37 @@ html, body {
 
 .icon-btn.stop-card__view-toggle.is-active { color: var(--ink); }
 
+/* Line filter chips */
+
+.stop-card__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 10px;
+}
+
+.line-chip {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.line-chip:hover { border-color: var(--ink-dim); color: #e7e9ee; }
+.line-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.line-chip.is-active {
+  color: var(--bg);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
 /* Rullande text (ticker) */
 
 .ticker-wrap {
@@ -231,8 +271,11 @@ html, body {
 }
 
 .ticker-item__dest {
+  font-family: var(--font-display);
   font-size: 18px;
-  color: #e7e9ee;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-shadow: 0 0 5px var(--ink-glow);
   margin-right: 10px;
 }
 
@@ -241,6 +284,7 @@ html, body {
   font-variant-numeric: tabular-nums;
   font-size: 18px;
   color: var(--ink);
+  text-shadow: 0 0 5px var(--ink-glow);
 }
 
 @keyframes ticker-scroll {
@@ -295,8 +339,11 @@ html, body {
 .badge--other        { background: var(--metro-neutral);border-radius: 6px; }
 
 .departure__destination {
+  font-family: var(--font-display);
   font-size: 14px;
-  color: #e7e9ee;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-shadow: 0 0 5px var(--ink-glow);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -307,6 +354,7 @@ html, body {
   font-variant-numeric: tabular-nums;
   font-size: 14px;
   color: var(--ink);
+  text-shadow: 0 0 5px var(--ink-glow);
   min-width: 3ch;
   text-align: right;
 }
